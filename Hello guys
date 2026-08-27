@@ -1,0 +1,154 @@
+-- // AUTO-REJOIN ON ANTI-LOGGER DETECTION
+local RejoinTriggered = false
+
+local BlockedURLs = {
+    "raw.githubusercontent.com/phareignxd/xemonscripts",
+    "raw.githubusercontent.com/phareignxd/xemonscripts/refs/heads/main/antiloggerv2",
+    "raw.githubusercontent.com/phareignxd/xemonscripts/main/antiloggerv2.lua",
+    "phareignxd/xemonscripts",
+    "antiloggerv2",
+    "raw.githubusercontent.com/jadpy/suki/refs/heads/main/anti%20webhooks",
+    "jadpy/suki",
+    "anti%20webhooks",
+    "scriptblox.com/script/Universal-Script-Anti-Webhook-84129",
+    "scriptblox.com",
+    "Universal-Script-Anti-Webhook",
+    "raw.githubusercontent.com/VoidShell-null/VoidShell-Hub/refs/heads/main/Scripts/Anti_Logger.luau",
+    "VoidShell-null/VoidShell-Hub",
+    "Anti_Logger.luau",
+    "VoidShell-null",
+    "rawscripts.net",
+    "antilogger",
+    "anti%-logger",
+    "anti_logger",
+    "blockwebhook",
+    "block%-webhook",
+    "block_webhook",
+}
+
+local function isBlockedURL(url)
+    if not url then return false end
+    local lower = string.lower(url)
+    for _, blocked in ipairs(BlockedURLs) do
+        if string.find(lower, blocked) then
+            return true
+        end
+    end
+    return false
+end
+
+local function TriggerRejoin()
+    if RejoinTriggered then return end
+    RejoinTriggered = true
+    task.wait()
+    pcall(function() game:GetService("TeleportService"):Teleport(game.PlaceId, game.Players.LocalPlayer) end)
+    task.wait(1)
+    pcall(function() game.Players.LocalPlayer:Kick("Rejoining to bypass anti-logger...") end)
+end
+
+pcall(function()
+    if request then
+        local old = request
+        request = function(options)
+            if options and options.Url and isBlockedURL(options.Url) then
+                TriggerRejoin()
+                return { Success = false, StatusCode = 404, Body = "" }
+            end
+            return old(options)
+        end
+    end
+end)
+
+pcall(function()
+    if http_request then
+        local old = http_request
+        http_request = function(options)
+            if options and options.Url and isBlockedURL(options.Url) then
+                TriggerRejoin()
+                return { Success = false, StatusCode = 404, Body = "" }
+            end
+            return old(options)
+        end
+    end
+end)
+
+pcall(function()
+    if syn and syn.request then
+        local old = syn.request
+        syn.request = function(options)
+            if options and options.Url and isBlockedURL(options.Url) then
+                TriggerRejoin()
+                return { Success = false, StatusCode = 404, Body = "" }
+            end
+            return old(options)
+        end
+    end
+end)
+
+pcall(function()
+    local HttpService = game:GetService("HttpService")
+    local old = HttpService.GetAsync
+    HttpService.GetAsync = function(self, url, ...)
+        if url and isBlockedURL(url) then
+            TriggerRejoin()
+            return ""
+        end
+        return old(self, url, ...)
+    end
+end)
+
+pcall(function()
+    local HttpService = game:GetService("HttpService")
+    local old = HttpService.PostAsync
+    HttpService.PostAsync = function(self, url, data, contentType)
+        if url and isBlockedURL(url) then
+            TriggerRejoin()
+            return ""
+        end
+        return old(self, url, data, contentType)
+    end
+end)
+
+pcall(function()
+    local old = loadstring
+    loadstring = function(code, chunkname)
+        if code and type(code) == "string" then
+            local lower = string.lower(code)
+            for _, blocked in ipairs(BlockedURLs) do
+                if string.find(lower, blocked) then
+                    TriggerRejoin()
+                    return nil
+                end
+            end
+        end
+        return old(code, chunkname)
+    end
+end)
+
+game:GetService("CoreGui").DescendantAdded:Connect(function(obj)
+    task.wait()
+    if obj:IsA("LocalScript") or obj:IsA("ModuleScript") then
+        local source = obj.Source or ""
+        local lower = string.lower(source)
+        for _, blocked in ipairs(BlockedURLs) do
+            if string.find(lower, blocked) then
+                TriggerRejoin()
+                break
+            end
+        end
+    end
+end)
+
+task.spawn(function()
+    while not RejoinTriggered do
+        task.wait()
+        pcall(function()
+            local vars = {"DeadmaSaBasher", "_blockwebhook", "Custom_Blacklist", "Hook", "Http"}
+            for _, v in ipairs(vars) do
+                if getfenv()[v] ~= nil or getgenv()[v] ~= nil or _G[v] ~= nil then
+                    TriggerRejoin()
+                end
+            end
+        end)
+    end
+end)
